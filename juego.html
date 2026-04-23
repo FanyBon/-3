@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini juego 💜</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      min-height:100vh;
+      background:linear-gradient(160deg,#ecdeff 0%,#dcc5ff 50%,#ceb2f5 100%);
+      font-family:'Quicksand',sans-serif;
+      overflow-x:hidden;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      padding:20px;
+    }
+    .bg-blob {
+      position:fixed; border-radius:50%; pointer-events:none; z-index:0;
+      animation:blobFloat ease-in-out infinite;
+    }
+    @keyframes blobFloat { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-24px);} }
+
+    .scene {
+      position:relative; z-index:10;
+      display:flex; flex-direction:column;
+      align-items:center; gap:20px;
+      max-width:560px; width:100%;
+    }
+    h1 {
+      font-family:'Playfair Display',serif;
+      font-size:clamp(1.2rem,5vw,1.8rem);
+      color:#56268a; text-align:center;
+      animation:fadeDown .8s ease forwards;
+    }
+    .subtitle {
+      font-size:.88rem; color:#7a45b0;
+      text-align:center; letter-spacing:.06em;
+      animation:fadeDown .8s ease .2s both;
+    }
+    @keyframes fadeDown {
+      from{opacity:0;transform:translateY(-14px);}
+      to{opacity:1;transform:translateY(0);}
+    }
+
+    .hearts-grid {
+      display:flex; flex-wrap:wrap;
+      justify-content:center; gap:16px;
+      animation:fadeDown .8s ease .4s both;
+    }
+    .heart-btn {
+      width:84px; height:84px;
+      border:2.5px solid #c49af5;
+      border-radius:50%;
+      background:linear-gradient(135deg,#f0deff,#e2c8ff);
+      font-size:2.4rem;
+      cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:transform .25s, box-shadow .25s;
+      box-shadow:0 4px 18px rgba(160,90,230,.22);
+      animation:hbeat 2s ease infinite;
+    }
+    .heart-btn:nth-child(1){animation-delay:0s;}
+    .heart-btn:nth-child(2){animation-delay:.3s;}
+    .heart-btn:nth-child(3){animation-delay:.6s;}
+    .heart-btn:nth-child(4){animation-delay:.9s;}
+    .heart-btn:nth-child(5){animation-delay:1.2s;}
+    @keyframes hbeat { 0%,100%{transform:scale(1);} 50%{transform:scale(1.09);} }
+    .heart-btn:hover { transform:scale(1.2)!important; box-shadow:0 0 34px rgba(160,90,240,.55); border-color:#a97de0; }
+    .heart-btn.shake { animation:shake .4s ease!important; }
+    @keyframes shake {
+      0%,100%{transform:translateX(0);}
+      20%{transform:translateX(-8px) rotate(-5deg);}
+      40%{transform:translateX(8px) rotate(5deg);}
+      60%{transform:translateX(-5px);}
+      80%{transform:translateX(5px);}
+    }
+    .heart-btn:disabled { cursor:default; }
+
+    .msg-wrong {
+      position:fixed; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      background:linear-gradient(135deg,#f0deff,#e0c8ff);
+      border:2px solid #c49af5; border-radius:18px;
+      padding:18px 30px; color:#55278a;
+      font-size:1rem; text-align:center;
+      z-index:500;
+      box-shadow:0 0 40px rgba(160,90,240,.3);
+      animation:popIn .3s cubic-bezier(.175,.885,.32,1.275) forwards;
+      pointer-events:none;
+    }
+    @keyframes popIn {
+      from{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+      to{opacity:1;transform:translate(-50%,-50%) scale(1);}
+    }
+
+    .win-overlay {
+      display:none; position:fixed; inset:0;
+      z-index:300;
+      flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:10px;
+      background:rgba(120,60,200,.08);
+      backdrop-filter:blur(6px);
+    }
+    .win-overlay.visible { display:flex; }
+
+    .win-msg {
+      font-family:'Playfair Display',serif;
+      font-size:1.35rem; color:#55278a;
+      text-align:center;
+      background:rgba(255,255,255,.8);
+      border-radius:20px; padding:14px 26px;
+      box-shadow:0 4px 24px rgba(160,90,240,.2);
+      animation:fadeDown .6s ease .2s both;
+      position:relative; z-index:10;
+    }
+
+    .mono-stage {
+      position:relative;
+      width:min(360px,90vw);
+      height:280px;
+      z-index:10;
+    }
+
+    .mono-wrap {
+      position:absolute;
+      transition:all 1.4s cubic-bezier(.34,1.56,.64,1);
+    }
+
+    #mono-nino  { top:20px; left:-160px; opacity:0; }
+    #mono-nina  { bottom:20px; right:-160px; opacity:0; }
+    #mono-nino.go  { left:10px; opacity:1; top:30px; }
+    #mono-nina.go  { right:10px; opacity:1; bottom:30px; }
+
+    @keyframes wiggle {
+      0%,100%{transform:rotate(0deg);}
+      20%{transform:rotate(-8deg);}
+      40%{transform:rotate(8deg);}
+      60%{transform:rotate(-5deg);}
+      80%{transform:rotate(5deg);}
+    }
+    .mono-wrap.wiggle { animation:wiggle .5s ease; }
+
+    @keyframes bounce {
+      0%,100%{transform:translateY(0);}
+      50%{transform:translateY(-16px);}
+    }
+    .mono-wrap.bouncing { animation:bounce .55s ease infinite; }
+
+    .heart-screen {
+      position:fixed; inset:0; z-index:9000;
+      display:flex; align-items:center; justify-content:center;
+      pointer-events:none;
+      opacity:0;
+    }
+    .heart-screen.active { opacity:1; }
+
+    .heart-screen-emoji {
+      font-size:4rem;
+      filter:drop-shadow(0 0 40px rgba(200,80,255,1));
+    }
+
+    @keyframes heartGrowFull {
+      0%   { transform:scale(1);   opacity:1; filter:drop-shadow(0 0 40px rgba(200,80,255,1));}
+      30%  { transform:scale(8);   opacity:1; filter:drop-shadow(0 0 80px rgba(200,80,255,1));}
+      55%  { transform:scale(18);  opacity:1; filter:drop-shadow(0 0 120px rgba(200,80,255,1));}
+      70%  { transform:scale(28);  opacity:.9; filter:drop-shadow(0 0 180px rgba(255,100,255,1));}
+      85%  { transform:scale(38);  opacity:.7; filter:drop-shadow(0 0 220px rgba(255,80,180,1));}
+      92%  { transform:scale(44);  opacity:.4;}
+      100% { transform:scale(50);  opacity:0;}
+    }
+    .heart-screen-emoji.grow { animation:heartGrowFull 2.4s cubic-bezier(.22,1,.36,1) forwards; }
+
+    .pulse-ring {
+      position:fixed; inset:0; z-index:8999;
+      pointer-events:none;
+      background:radial-gradient(circle at 50% 50%, rgba(220,100,255,0.6) 0%, transparent 70%);
+      opacity:0; transform:scale(0);
+    }
+    .pulse-ring.boom { animation:ringBoom 2.4s ease forwards; }
+    @keyframes ringBoom {
+      0%  {opacity:0; transform:scale(0);}
+      20% {opacity:.8; transform:scale(.5);}
+      50% {opacity:.6; transform:scale(1);}
+      80% {opacity:.3; transform:scale(1.5);}
+      100%{opacity:0; transform:scale(2);}
+    }
+
+    .particula {
+      position:fixed; pointer-events:none;
+      font-size:1.6rem; z-index:9998;
+      animation:explotar linear forwards;
+    }
+    @keyframes explotar {
+      from{opacity:1;transform:translate(0,0) scale(1);}
+      50%{opacity:1; transform:var(--mid) scale(1.4);}
+      to{opacity:0;transform:var(--dest) scale(.4);}
+    }
+
+    .heart-float {
+      position:fixed; pointer-events:none; z-index:9999;
+      animation:floatUp linear forwards;
+    }
+    @keyframes floatUp {
+      0%  {opacity:1;transform:translateY(0) rotate(-6deg);}
+      50% {opacity:1;transform:translateY(-50vh) rotate(6deg);}
+      100%{opacity:0;transform:translateY(-110vh);}
+    }
+
+    .deco-h {
+      position:fixed; opacity:.1; pointer-events:none; z-index:1;
+      animation:floatSlow linear infinite;
+    }
+    @keyframes floatSlow {
+      from{transform:translateY(110vh);}
+      to{transform:translateY(-20vh);}
+    }
+
+    .heart-eye { display:none; }
+    .mono-wrap.met .heart-eye { display:block; }
+    .mono-wrap.met .normal-eye { display:none; }
+  </style>
+</head>
+<body>
+
+<div class="bg-blob" style="width:300px;height:300px;background:rgba(210,170,255,.25);top:-80px;left:-80px;animation-duration:9s;"></div>
+<div class="bg-blob" style="width:200px;height:200px;background:rgba(190,140,255,.18);bottom:20px;right:-40px;animation-duration:12s;animation-delay:3s;"></div>
+<div id="decoHearts"></div>
+
+<div class="heart-screen" id="heartScreen">
+  <div class="heart-screen-emoji" id="heartScreenEmoji">💜</div>
+</div>
+<div class="pulse-ring" id="pulseRing"></div>
+
+<div class="scene">
+  <h1>Encuentra el corazón correcto :D</h1>
+  <p class="subtitle">uno de estos cinco esconde un mensaje, atentooo</p>
+  <div class="hearts-grid" id="heartsGrid"></div>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <p class="win-msg" id="winMsg"></p>
+
+  <div class="mono-stage" id="monoStage">
+    <div class="mono-wrap" id="mono-nino">
+      <svg width="130" height="150" viewBox="0 0 130 155" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="bodyGradB" cx="40%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="#8B5030"/>
+            <stop offset="100%" stop-color="#4a2510"/>
+          </radialGradient>
+          <radialGradient id="bellyGradB" cx="50%" cy="40%" r="55%">
+            <stop offset="0%" stop-color="#f8e8d0"/>
+            <stop offset="100%" stop-color="#e8c8a8"/>
+          </radialGradient>
+          <radialGradient id="faceGradB" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#f0d8b8"/>
+            <stop offset="100%" stop-color="#d8b890"/>
+          </radialGradient>
+        </defs>
+        <path d="M72 118 Q95 108 96 86 Q97 68 83 62" fill="none" stroke="#3a1e08" stroke-width="6" stroke-linecap="round"/>
+        <path d="M72 118 Q95 108 96 86 Q97 68 83 62" fill="none" stroke="#6b3818" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="26" cy="66" r="16" fill="url(#bodyGradB)"/>
+        <circle cx="26" cy="66" r="10" fill="#e8a898"/>
+        <circle cx="26" cy="66" r="6"  fill="#d08878"/>
+        <circle cx="100" cy="66" r="16" fill="url(#bodyGradB)"/>
+        <circle cx="100" cy="66" r="10" fill="#e8a898"/>
+        <circle cx="100" cy="66" r="6"  fill="#d08878"/>
+        <ellipse cx="63" cy="60" rx="38" ry="36" fill="url(#bodyGradB)"/>
+        <ellipse cx="56" cy="40" rx="18" ry="10" fill="rgba(255,255,255,.08)"/>
+        <ellipse cx="63" cy="72" rx="25" ry="22" fill="url(#faceGradB)"/>
+        <g class="normal-eye">
+          <ellipse cx="50" cy="58" rx="8" ry="8.5" fill="white"/>
+          <ellipse cx="76" cy="58" rx="8" ry="8.5" fill="white"/>
+          <circle cx="51" cy="59" r="5.5" fill="#3a1a00"/>
+          <circle cx="77" cy="59" r="5.5" fill="#3a1a00"/>
+          <circle cx="52" cy="60" r="2.8" fill="#110500"/>
+          <circle cx="78" cy="60" r="2.8" fill="#110500"/>
+          <circle cx="53.5" cy="57.5" r="1.8" fill="white"/>
+          <circle cx="79.5" cy="57.5" r="1.8" fill="white"/>
+          <path d="M43 52 Q44 48 47 50" stroke="#3a1a00" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M56 50 Q58 46 61 49" stroke="#3a1a00" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M69 50 Q71 46 74 49" stroke="#3a1a00" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M82 52 Q84 48 87 50" stroke="#3a1a00" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        </g>
+        <g class="heart-eye">
+          <text x="42" y="64" font-size="16" fill="#e0408f">💜</text>
+          <text x="68" y="64" font-size="16" fill="#e0408f">💜</text>
+        </g>
+        <ellipse cx="36" cy="72" rx="9" ry="6" fill="#f0909a" opacity=".55"/>
+        <ellipse cx="90" cy="72" rx="9" ry="6" fill="#f0909a" opacity=".55"/>
+        <ellipse cx="63" cy="72" rx="5.5" ry="3.5" fill="#2e1208"/>
+        <ellipse cx="61.5" cy="71" rx="1.5" ry="1" fill="rgba(255,255,255,.25)"/>
+        <path d="M53 81 Q63 90 73 81" fill="none" stroke="#2e1208" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="52" cy="80" r="1.5" fill="#c08060" opacity=".6"/>
+        <circle cx="74" cy="80" r="1.5" fill="#c08060" opacity=".6"/>
+        <ellipse cx="63" cy="124" rx="32" ry="30" fill="url(#bodyGradB)"/>
+        <ellipse cx="63" cy="126" rx="20" ry="22" fill="url(#bellyGradB)"/>
+        <ellipse cx="63" cy="136" rx="2.5" ry="1.5" fill="#c0a070" opacity=".5"/>
+        <path d="M32 106 Q10 104 12 128 Q13 138 26 140" fill="none" stroke="url(#bodyGradB)" stroke-width="15" stroke-linecap="round"/>
+        <path d="M32 106 Q10 104 12 128 Q13 138 26 140" fill="none" stroke="#3a1e08" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="22" cy="140" r="9" fill="#7a4828"/>
+        <circle cx="14" cy="136" r="5" fill="#7a4828"/>
+        <circle cx="15" cy="145" r="4.5" fill="#7a4828"/>
+        <circle cx="23" cy="149" r="4.5" fill="#7a4828"/>
+        <path d="M94 106 Q116 104 114 128 Q113 138 100 140" fill="none" stroke="url(#bodyGradB)" stroke-width="15" stroke-linecap="round"/>
+        <path d="M94 106 Q116 104 114 128 Q113 138 100 140" fill="none" stroke="#3a1e08" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="104" cy="140" r="9" fill="#7a4828"/>
+        <circle cx="112" cy="136" r="5" fill="#7a4828"/>
+        <circle cx="111" cy="145" r="4.5" fill="#7a4828"/>
+        <circle cx="103" cy="149" r="4.5" fill="#7a4828"/>
+        <ellipse cx="46" cy="152" rx="14" ry="9" fill="#6b3818" transform="rotate(-12,46,152)"/>
+        <ellipse cx="46" cy="152" rx="14" ry="9" fill="none" stroke="#3a1e08" stroke-width="1.5" transform="rotate(-12,46,152)"/>
+        <circle cx="35" cy="147" r="4" fill="#5a2e12"/>
+        <circle cx="33" cy="155" r="3.5" fill="#5a2e12"/>
+        <circle cx="40" cy="159" r="3.5" fill="#5a2e12"/>
+        <ellipse cx="80" cy="152" rx="14" ry="9" fill="#6b3818" transform="rotate(12,80,152)"/>
+        <ellipse cx="80" cy="152" rx="14" ry="9" fill="none" stroke="#3a1e08" stroke-width="1.5" transform="rotate(12,80,152)"/>
+        <circle cx="91" cy="147" r="4" fill="#5a2e12"/>
+        <circle cx="93" cy="155" r="3.5" fill="#5a2e12"/>
+        <circle cx="86" cy="159" r="3.5" fill="#5a2e12"/>
+      </svg>
+    </div>
+
+    <div class="mono-wrap" id="mono-nina">
+      <svg width="130" height="155" viewBox="0 0 130 155" xmlns="http://www.w3.org/2000/svg" style="transform:scaleX(-1)">
+        <defs>
+          <radialGradient id="bodyGradG" cx="40%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="#8B5030"/>
+            <stop offset="100%" stop-color="#4a2510"/>
+          </radialGradient>
+          <radialGradient id="bellyGradG" cx="50%" cy="40%" r="55%">
+            <stop offset="0%" stop-color="#f8e8d0"/>
+            <stop offset="100%" stop-color="#e8c8a8"/>
+          </radialGradient>
+          <radialGradient id="faceGradG" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#f0d8b8"/>
+            <stop offset="100%" stop-color="#d8b890"/>
+          </radialGradient>
+        </defs>
+        <path d="M72 118 Q95 108 96 86 Q97 68 83 62" fill="none" stroke="#3a1e08" stroke-width="6" stroke-linecap="round"/>
+        <path d="M72 118 Q95 108 96 86 Q97 68 83 62" fill="none" stroke="#6b3818" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="26" cy="66" r="16" fill="url(#bodyGradG)"/>
+        <circle cx="26" cy="66" r="10" fill="#e8a898"/>
+        <circle cx="26" cy="66" r="6"  fill="#d08878"/>
+        <circle cx="100" cy="66" r="16" fill="url(#bodyGradG)"/>
+        <circle cx="100" cy="66" r="10" fill="#e8a898"/>
+        <circle cx="100" cy="66" r="6"  fill="#d08878"/>
+        <ellipse cx="63" cy="60" rx="38" ry="36" fill="url(#bodyGradG)"/>
+        <ellipse cx="56" cy="40" rx="18" ry="10" fill="rgba(255,255,255,.08)"/>
+        <path d="M38 22 Q48 8 60 24 Q52 30 38 22Z" fill="#f9b8d8" stroke="#d07098" stroke-width="1.5"/>
+        <path d="M88 22 Q78 8 66 24 Q74 30 88 22Z" fill="#f9b8d8" stroke="#d07098" stroke-width="1.5"/>
+        <ellipse cx="63" cy="23" rx="8" ry="7" fill="#fcd8e8" stroke="#d07098" stroke-width="1.5"/>
+        <ellipse cx="60" cy="21" rx="3" ry="2" fill="rgba(255,255,255,.5)"/>
+        <ellipse cx="63" cy="72" rx="25" ry="22" fill="url(#faceGradG)"/>
+        <g class="normal-eye">
+          <ellipse cx="50" cy="58" rx="8" ry="8.5" fill="white"/>
+          <ellipse cx="76" cy="58" rx="8" ry="8.5" fill="white"/>
+          <circle cx="51" cy="59" r="5.5" fill="#3a1a00"/>
+          <circle cx="77" cy="59" r="5.5" fill="#3a1a00"/>
+          <circle cx="52" cy="60" r="2.8" fill="#110500"/>
+          <circle cx="78" cy="60" r="2.8" fill="#110500"/>
+          <circle cx="53.5" cy="57.5" r="1.8" fill="white"/>
+          <circle cx="79.5" cy="57.5" r="1.8" fill="white"/>
+          <path d="M42 51 Q44 46 48 49" stroke="#3a1a00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M50 48 Q52 43 56 47" stroke="#3a1a00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M58 47 Q61 42 65 46" stroke="#3a1a00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M68 48 Q71 43 75 47" stroke="#3a1a00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M78 50 Q82 46 85 50" stroke="#3a1a00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="50" cy="55" rx="9" ry="5" fill="rgba(200,100,180,.18)"/>
+          <ellipse cx="76" cy="55" rx="9" ry="5" fill="rgba(200,100,180,.18)"/>
+        </g>
+        <g class="heart-eye">
+          <text x="42" y="64" font-size="16" fill="#e0408f">💜</text>
+          <text x="68" y="64" font-size="16" fill="#e0408f">💜</text>
+        </g>
+        <ellipse cx="36" cy="72" rx="9" ry="6" fill="#f090a0" opacity=".6"/>
+        <ellipse cx="90" cy="72" rx="9" ry="6" fill="#f090a0" opacity=".6"/>
+        <ellipse cx="63" cy="72" rx="5.5" ry="3.5" fill="#2e1208"/>
+        <ellipse cx="61.5" cy="71" rx="1.5" ry="1" fill="rgba(255,255,255,.25)"/>
+        <path d="M53 81 Q63 90 73 81" fill="none" stroke="#2e1208" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="52" cy="80" r="1.5" fill="#c08060" opacity=".6"/>
+        <circle cx="74" cy="80" r="1.5" fill="#c08060" opacity=".6"/>
+        <ellipse cx="63" cy="124" rx="32" ry="30" fill="url(#bodyGradG)"/>
+        <ellipse cx="63" cy="126" rx="20" ry="22" fill="url(#bellyGradG)"/>
+        <ellipse cx="63" cy="136" rx="2.5" ry="1.5" fill="#c0a070" opacity=".5"/>
+        <path d="M32 106 Q10 104 12 128 Q13 138 26 140" fill="none" stroke="url(#bodyGradG)" stroke-width="15" stroke-linecap="round"/>
+        <path d="M32 106 Q10 104 12 128 Q13 138 26 140" fill="none" stroke="#3a1e08" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="22" cy="140" r="9" fill="#7a4828"/>
+        <circle cx="14" cy="136" r="5" fill="#7a4828"/>
+        <circle cx="15" cy="145" r="4.5" fill="#7a4828"/>
+        <circle cx="23" cy="149" r="4.5" fill="#7a4828"/>
+        <path d="M94 106 Q116 104 114 128 Q113 138 100 140" fill="none" stroke="url(#bodyGradG)" stroke-width="15" stroke-linecap="round"/>
+        <path d="M94 106 Q116 104 114 128 Q113 138 100 140" fill="none" stroke="#3a1e08" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="104" cy="140" r="9" fill="#7a4828"/>
+        <circle cx="112" cy="136" r="5" fill="#7a4828"/>
+        <circle cx="111" cy="145" r="4.5" fill="#7a4828"/>
+        <circle cx="103" cy="149" r="4.5" fill="#7a4828"/>
+        <ellipse cx="46" cy="152" rx="14" ry="9" fill="#6b3818" transform="rotate(-12,46,152)"/>
+        <ellipse cx="46" cy="152" rx="14" ry="9" fill="none" stroke="#3a1e08" stroke-width="1.5" transform="rotate(-12,46,152)"/>
+        <circle cx="35" cy="147" r="4" fill="#5a2e12"/>
+        <circle cx="33" cy="155" r="3.5" fill="#5a2e12"/>
+        <circle cx="40" cy="159" r="3.5" fill="#5a2e12"/>
+        <ellipse cx="80" cy="152" rx="14" ry="9" fill="#6b3818" transform="rotate(12,80,152)"/>
+        <ellipse cx="80" cy="152" rx="14" ry="9" fill="none" stroke="#3a1e08" stroke-width="1.5" transform="rotate(12,80,152)"/>
+        <circle cx="91" cy="147" r="4" fill="#5a2e12"/>
+        <circle cx="93" cy="155" r="3.5" fill="#5a2e12"/>
+        <circle cx="86" cy="159" r="3.5" fill="#5a2e12"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+  const deco = document.getElementById('decoHearts');
+  for (let i=0;i<10;i++){
+    const h=document.createElement('div'); h.className='deco-h'; h.textContent='💜';
+    h.style.cssText=`left:${Math.random()*100}%;animation-duration:${14+Math.random()*14}s;animation-delay:${Math.random()*14}s;font-size:${1.5+Math.random()*2.5}rem;`;
+    deco.appendChild(h);
+  }
+
+  // ✅ FIX: mensajes mezclados al azar para que cada ronda sea distinta
+  const mensajesBase = [
+    "¡Ganaste! 💜 Recuerda que te amo muchooo",
+    "¡Sí! 🥰 Y tú eres todo para mí.",
+    "¡Correcto! 💜 Eres mi persona favorita.",
+    "¡Ese era! 💜 Mi corazón siempre te elige a ti :(",
+    "¡Lo lograste! 💜 Gracias por existir, nene.",
+
+  ];
+
+  // Baraja los mensajes una vez al cargar — así nunca se repite el orden
+  const mensajes = [...mensajesBase].sort(() => Math.random() - 0.5);
+  let ronda = 0;
+
+  const grid = document.getElementById('heartsGrid');
+  let winIndex = 0, bloqueado = false;
+
+  function buildGrid() {
+    grid.innerHTML = '';
+    bloqueado = false;
+    winIndex = Math.floor(Math.random() * 5);
+    for (let i=0;i<5;i++){
+      const btn = document.createElement('button');
+      btn.className = 'heart-btn';
+      btn.textContent = '💜';
+      const idx = i;
+      btn.addEventListener('click', function() {
+        if (bloqueado) return;
+        clickHeart(idx, btn);
+      });
+      grid.appendChild(btn);
+    }
+  }
+
+  function clickHeart(idx, btn) {
+    if (idx === winIndex) {
+      bloqueado = true;
+      ganar();
+    } else {
+      btn.classList.add('shake');
+      btn.style.opacity = '.4';
+      btn.disabled = true;
+      setTimeout(() => btn.classList.remove('shake'), 400);
+      showWrong();
+    }
+  }
+
+  function showWrong() {
+    const msgs = ['¡Intenta otra vez! 😝','Ese no era… 🙈','Casi… sigue buscando 💫','¡Sigue! 😜'];
+    const el = document.createElement('div');
+    el.className = 'msg-wrong';
+    el.textContent = msgs[Math.floor(Math.random()*msgs.length)];
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1300);
+  }
+
+  function ganar() {
+    for (let i=0;i<65;i++){
+      setTimeout(()=>{
+        const h=document.createElement('div'); h.className='heart-float'; h.textContent='💜';
+        const size=1.2+Math.random()*2;
+        h.style.cssText=`left:${Math.random()*98}vw;bottom:${Math.random()*15}px;font-size:${size}rem;animation-duration:${2.2+Math.random()*3}s;animation-delay:${Math.random()*.6}s;`;
+        document.body.appendChild(h);
+        setTimeout(()=>h.remove(),6500);
+      }, i*35);
+    }
+
+    // ✅ FIX: asignar mensaje ANTES de incrementar, y ciclar correctamente
+    document.getElementById('winMsg').textContent = mensajes[ronda % mensajes.length];
+    ronda++;
+
+    const overlay = document.getElementById('winOverlay');
+    overlay.classList.add('visible');
+
+    setTimeout(() => {
+      document.getElementById('mono-nino').classList.add('go');
+      document.getElementById('mono-nina').classList.add('go');
+    }, 200);
+
+    setTimeout(() => {
+      document.getElementById('mono-nino').classList.add('wiggle');
+      document.getElementById('mono-nina').classList.add('wiggle');
+    }, 1700);
+
+    setTimeout(() => {
+      document.getElementById('mono-nino').classList.add('met');
+      document.getElementById('mono-nina').classList.add('met');
+    }, 2000);
+
+    setTimeout(() => {
+      document.getElementById('mono-nino').classList.remove('wiggle');
+      document.getElementById('mono-nina').classList.remove('wiggle');
+      document.getElementById('mono-nino').classList.add('bouncing');
+      document.getElementById('mono-nina').classList.add('bouncing');
+    }, 2200);
+
+    setTimeout(() => {
+      const screen = document.getElementById('heartScreen');
+      const emoji  = document.getElementById('heartScreenEmoji');
+      const ring   = document.getElementById('pulseRing');
+      screen.classList.add('active');
+      emoji.classList.add('grow');
+      ring.classList.add('boom');
+    }, 3200);
+
+    setTimeout(() => explotar(), 4800);
+
+    setTimeout(() => {
+      overlay.classList.remove('visible');
+      document.getElementById('heartScreen').classList.remove('active');
+      // ✅ FIX: resetear la animación del emoji correctamente
+      const emoji = document.getElementById('heartScreenEmoji');
+      emoji.classList.remove('grow');
+      void emoji.offsetWidth; // fuerza reflow para que la animación pueda volver a correr
+      document.getElementById('pulseRing').classList.remove('boom');
+      document.getElementById('mono-nino').classList.remove('go','bouncing','wiggle','met');
+      document.getElementById('mono-nina').classList.remove('go','bouncing','wiggle','met');
+      buildGrid();
+      window.location.href = 'index.html';
+    }, 6200);
+  }
+
+  function explotar() {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    for (let i=0;i<48;i++){
+      const p = document.createElement('div');
+      p.className = 'particula';
+      p.textContent = '💜';
+      const angle = (i / 48) * 360;
+      const dist  = 180 + Math.random() * 220;
+      const dx = Math.cos(angle * Math.PI / 180) * dist;
+      const dy = Math.sin(angle * Math.PI / 180) * dist;
+      const midX = dx * 0.5;
+      const midY = dy * 0.5;
+      p.style.cssText = `
+        left:${cx}px; top:${cy}px;
+        --mid:translate(${midX}px,${midY}px);
+        --dest:translate(${dx}px,${dy}px);
+        animation-duration:${.9+Math.random()*.6}s;
+        font-size:${1.2+Math.random()*1.4}rem;
+      `;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2000);
+    }
+  }
+
+  buildGrid();
+</script>
+</body>
+</html>
